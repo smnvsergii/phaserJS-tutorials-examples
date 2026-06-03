@@ -25,14 +25,18 @@ export const GameConfig = {
     cardAspect: 2 / 3, // width / height
     cardGap: 16,
 
-    // Layout regions. Top/HUD reserves are ratios of viewport height so
-    // they track the background logo (which scales with the viewport).
+    // Layout regions. Top reserve tracks the logo baked into the
+    // background image (see logoBottomRatio) rather than the viewport, so
+    // cards never overlap the logo regardless of aspect ratio.
     layout: {
-        topReserveRatio: 0.28, // space for the MEMORY FORTUNE logo
-        hudReserveRatio: 0.16, // bottom HUD: matches / moves / timer
-        hudBarHeight: 110, // HUD bar visual height (clamped)
+        // Fraction of the background image height occupied by the logo.
+        logoBottomRatio: 0.34,
+        hudReserveRatio: 0.112, // bottom HUD area (compact)
+        hudBarHeight: 84, // compact bar height
         sidePadding: 24,
         verticalPadding: 12,
+        // Hard cap so cards never grow huge on large screens.
+        maxCardHeight: 300,
     },
 
     // Responsive breakpoints (viewport width → number of columns).
@@ -56,12 +60,12 @@ export const GameConfig = {
     },
 
     ui: {
-        hudFont: '700 28px "Cinzel", serif',
-        hudLabelFont: '600 15px "Cinzel", serif',
+        // Font family/style kept separate from size so setFontSize() works
+        // reliably (a CSS `font` shorthand wipes fontFamily on resize).
+        fontFamily: '"Cinzel", serif',
+        fontFamilyDecorative: '"Cinzel Decorative", "Cinzel", serif',
         hudColor: '#ffcf5c',
         hudLabelColor: '#fff7df',
-        popupTitleFont: '700 44px "Cinzel Decorative", "Cinzel", serif',
-        popupSubtitleFont: '600 22px "Cinzel", serif',
     },
 
     storage: {

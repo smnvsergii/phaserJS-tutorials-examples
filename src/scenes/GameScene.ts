@@ -92,28 +92,54 @@ export class GameScene extends Phaser.Scene {
         // Cover the viewport, but anchor to the TOP so the logo and slot
         // machines near the top edge are never cropped — only the casino
         // floor at the bottom gets clipped when the aspect doesn't match.
-        const scale = Math.max(width / tex.width, height / tex.height);
+        const scale = this.bgScale(width, height);
         this.bg.setScale(scale);
         const dispW = tex.width * scale;
         this.bg.setPosition((width - dispW) / 2, 0);
     }
 
+    /** Cover scale used for the background (shared with layout math). */
+    private bgScale(width: number, height: number): number {
+        const tex = this.textures.get('bg').getSourceImage() as HTMLImageElement;
+        return Math.max(width / tex.width, height / tex.height);
+    }
+
+    /**
+     * Y coordinate where the logo ends on screen — the card grid must
+     * start below this. Derived from the actual background scale so it
+     * tracks the logo at every aspect ratio (the logo is baked into bg).
+     */
+    private logoBottomY(width: number, height: number): number {
+        const tex = this.textures.get('bg').getSourceImage() as HTMLImageElement;
+        const scale = this.bgScale(width, height);
+        return tex.height * scale * GameConfig.layout.logoBottomRatio;
+    }
+
     private createHud(): void {
         this.hudContainer = this.add.container(0, 0);
+        // Render text at device pixel ratio so it stays crisp on retina /
+        // when the RESIZE scale manager renders the canvas at >1x.
+        const res = Math.max(2, window.devicePixelRatio || 1);
 
         const make = (label: string, withIcon = false): HudCell => {
             const box = this.add.graphics();
             const labelText = this.add
                 .text(0, 0, label, {
-                    font: GameConfig.ui.hudLabelFont,
+                    fontFamily: GameConfig.ui.fontFamily,
+                    fontStyle: '600',
+                    fontSize: '24px',
                     color: GameConfig.ui.hudLabelColor,
+                    resolution: res,
                 })
                 .setOrigin(0.5);
             labelText.setLetterSpacing(1);
             const valueText = this.add
                 .text(0, 0, '-', {
-                    font: GameConfig.ui.hudFont,
+                    fontFamily: GameConfig.ui.fontFamily,
+                    fontStyle: '700',
+                    fontSize: '60px',
                     color: GameConfig.ui.hudColor,
+                    resolution: res,
                 })
                 .setOrigin(0.5)
                 .setShadow(0, 2, 'rgba(0,0,0,0.65)', 4)
@@ -130,7 +156,7 @@ export class GameScene extends Phaser.Scene {
         this.hudCells = {
             matches: make('MATCHES'),
             moves: make('MOVES'),
-            timer: make('TIMER', true),
+            timer: make('', true),
         };
         this.updateHudValues();
     }
@@ -152,9 +178,8 @@ export class GameScene extends Phaser.Scene {
         if (!timer?.icon) return;
         const cx = timer.boxCenterX;
         const valueY = timer.value.y;
-        const valuePx = parseInt(String(timer.value.style.fontSize), 10) || 32;
-        const iconSize = valuePx * 0.82;
-        const iconGap = iconSize * 0.35;
+        const iconSize = 20;
+        const iconGap = iconSize * 0.4;
         const rowW = iconSize + iconGap + timer.value.width;
         const rowLeft = cx - rowW / 2;
         this.drawClockIcon(timer.icon, rowLeft + iconSize / 2, valueY, iconSize);
@@ -216,12 +241,12 @@ export class GameScene extends Phaser.Scene {
 
     private layoutHud(width: number, height: number): void {
         if (!this.hudCells) return;
-        const { hudBarHeight, hudReserveRatio, sidePadding } = GameConfig.layout;
+        const { hudBarHeight, sidePadding } = GameConfig.layout;
 
         const cells = [this.hudCells.matches, this.hudCells.moves, this.hudCells.timer];
 
-        // Each stat is a separate rounded box (like the reference HUD).
-        const boxHeight = Math.min(hudBarHeight, height * hudReserveRatio - 16);
+        // Compact fixed-height bar.
+        const boxHeight = hudBarHeight;
         const gap = 20;
         const maxTotalWidth = Math.min(width - sidePadding * 2, 760);
         const boxWidth = Math.min(240, (maxTotalWidth - gap * (cells.length - 1)) / cells.length);
@@ -230,30 +255,30 @@ export class GameScene extends Phaser.Scene {
         const startX = (width - totalWidth) / 2;
         const boxY = height - boxHeight - 16;
 
+        // Value digits 20px; labels a touch smaller for hierarchy.
+        const valuePx = 20;
+        const labelPx = 16;
+
         cells.forEach((cell, i) => {
             const boxX = startX + i * (boxWidth + gap);
             const cx = boxX + boxWidth / 2;
             cell.boxCenterX = cx;
             this.drawHudBox(cell.box, boxX, boxY, boxWidth, boxHeight);
 
-            // Label near the top, value centered below.
-            cell.label.setPosition(cx, boxY + boxHeight * 0.28);
-
-            // Bigger, banner-style gold value text.
-            const labelPx = Math.round(Phaser.Math.Clamp(boxHeight * 0.2, 12, 20));
-            const valuePx = Math.round(Phaser.Math.Clamp(boxHeight * 0.52, 28, 52));
             cell.label.setFontSize(labelPx);
             cell.value.setFontSize(valuePx);
 
-            const valueY = boxY + boxHeight * 0.64;
-            cell.value.y = valueY;
-
             if (cell.icon) {
-                // Timer: lay out [clock][time] as one centered row.
+                // Timer cell: no label — [clock][time] centered in the box.
+                cell.label.setVisible(false);
+                cell.value.y = boxY + boxHeight * 0.5;
                 this.layoutTimerRow();
             } else {
+                // Label near the top, value centered below.
+                cell.label.setVisible(true);
+                cell.label.setPosition(cx, boxY + boxHeight * 0.3);
                 cell.value.setOrigin(0.5);
-                cell.value.setPosition(cx, valueY);
+                cell.value.setPosition(cx, boxY + boxHeight * 0.66);
             }
         });
     }
@@ -280,7 +305,7 @@ export class GameScene extends Phaser.Scene {
         g.strokeRoundedRect(x + 1.5, y + 1.5, w - 3, h - 3, r - 1);
     }
 
-    /** Minimal clock glyph drawn in gold (no external asset needed). */
+    /** Stopwatch glyph (face + top stem/button + side nubs + hands). */
     private drawClockIcon(
         g: Phaser.GameObjects.Graphics,
         cx: number,
@@ -288,24 +313,52 @@ export class GameScene extends Phaser.Scene {
         size: number,
     ): void {
         const r = size / 2;
+        const lw = Math.max(2, size * 0.08);
+        const gold = 0xfff3c4;
         g.clear();
-        g.lineStyle(Math.max(2, size * 0.09), 0xfff3c4, 1);
-        g.strokeCircle(cx, cy, r);
-        // Hands: one up, one to the right.
-        g.lineBetween(cx, cy, cx, cy - r * 0.6);
-        g.lineBetween(cx, cy, cx + r * 0.45, cy);
+
+        // Face centered slightly below to leave room for the top button.
+        const faceCy = cy + size * 0.08;
+        const faceR = r * 0.82;
+
+        // Side nubs (little buttons at ~45°).
+        g.lineStyle(lw, gold, 1);
+        const nub = faceR * 0.22;
+        const nx = Math.cos(Phaser.Math.DegToRad(55)) * faceR;
+        const ny = Math.sin(Phaser.Math.DegToRad(55)) * faceR;
+        g.lineBetween(cx - nx, faceCy - ny, cx - nx - nub, faceCy - ny - nub);
+        g.lineBetween(cx + nx, faceCy - ny, cx + nx + nub, faceCy - ny - nub);
+
+        // Top stem + button (the press knob on a stopwatch).
+        g.lineBetween(cx, faceCy - faceR, cx, faceCy - faceR - size * 0.14);
+        g.fillStyle(gold, 1);
+        g.fillRoundedRect(
+            cx - size * 0.12,
+            faceCy - faceR - size * 0.24,
+            size * 0.24,
+            size * 0.12,
+            size * 0.04,
+        );
+
+        // Face ring.
+        g.lineStyle(lw, gold, 1);
+        g.strokeCircle(cx, faceCy, faceR);
+
+        // Hands: one up, one to the upper-right.
+        g.lineBetween(cx, faceCy, cx, faceCy - faceR * 0.6);
+        g.lineBetween(cx, faceCy, cx + faceR * 0.42, faceCy - faceR * 0.1);
     }
 
     private layoutCards(width: number, height: number): void {
         const cols = this.pickColumns(width);
         const rows = Math.ceil(this.cards.length / cols);
-        const { sidePadding, verticalPadding, topReserveRatio, hudReserveRatio } =
-            GameConfig.layout;
+        const { sidePadding, verticalPadding, hudReserveRatio, maxCardHeight } = GameConfig.layout;
 
-        // Reserve top space for the logo and bottom space for the HUD,
-        // proportional to viewport height so they track the background.
-        const availableTop = height * topReserveRatio + verticalPadding;
-        const availableBottom = height * (1 - hudReserveRatio) - verticalPadding;
+        // Top reserve tracks the logo baked into the background (so cards
+        // never overlap it). Bottom reserve is the HUD area.
+        const availableTop = this.logoBottomY(width, height) + verticalPadding;
+        // Extra 30px breathing room between the card grid and the HUD bar.
+        const availableBottom = height * (1 - hudReserveRatio) - verticalPadding - 30;
         const availableWidth = width - sidePadding * 2;
         const availableHeight = Math.max(120, availableBottom - availableTop);
 
@@ -319,6 +372,12 @@ export class GameScene extends Phaser.Scene {
         let cardH = cardW / GameConfig.cardAspect;
         if (cardH > cellHeightByGrid) {
             cardH = cellHeightByGrid;
+            cardW = cardH * GameConfig.cardAspect;
+        }
+        // Hard cap so cards don't grow huge (and overlap the logo) when the
+        // viewport is stretched wide.
+        if (cardH > maxCardHeight) {
+            cardH = maxCardHeight;
             cardW = cardH * GameConfig.cardAspect;
         }
 
@@ -454,14 +513,18 @@ export class GameScene extends Phaser.Scene {
         const { colors, ui } = GameConfig;
 
         const popup = this.add.image(0, 0, 'background-win');
+        const res = Math.max(2, window.devicePixelRatio || 1);
 
         // Text inside the frame. "AMAZING!" sits in the lower-mid of the
         // frame, "ALL PAIRS FOUND!" just below it. Both are centered.
         const amazing = this.add
             .text(0, 0, 'AMAZING!', {
-                font: ui.popupTitleFont,
+                fontFamily: ui.fontFamilyDecorative,
+                fontStyle: '700',
+                fontSize: '44px',
                 color: colors.gold1,
                 align: 'center',
+                resolution: res,
             })
             .setOrigin(0.5)
             .setStroke(colors.purple3, 6)
@@ -469,9 +532,12 @@ export class GameScene extends Phaser.Scene {
 
         const subtitle = this.add
             .text(0, 0, 'ALL PAIRS FOUND!', {
-                font: ui.popupSubtitleFont,
+                fontFamily: ui.fontFamily,
+                fontStyle: '600',
+                fontSize: '22px',
                 color: colors.whiteWarm,
                 align: 'center',
+                resolution: res,
             })
             .setOrigin(0.5)
             .setStroke(colors.purple3, 4);

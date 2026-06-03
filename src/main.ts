@@ -45,3 +45,13 @@ const game = new Phaser.Game({
 });
 
 game.registry.set('mfeBridge', mfeBridge);
+
+// Dev-only: expose the game on window so it can be inspected from the
+// browser console (Phaser is an ES module, so it isn't global otherwise).
+//   const g = window.__GAME__;
+//   const s = g.scene.getScene('Game');
+//   s.hudCells.moves.value.style.fontSize
+if (import.meta.env.DEV) {
+    (window as unknown as { __GAME__: Phaser.Game }).__GAME__ = game;
+    (window as unknown as { Phaser: typeof Phaser }).Phaser = Phaser;
+}

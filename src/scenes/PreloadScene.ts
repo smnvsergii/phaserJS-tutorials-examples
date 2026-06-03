@@ -51,7 +51,9 @@ export class PreloadScene extends Phaser.Scene {
         const fill = this.add.graphics();
         const label = this.add
             .text(width / 2, y - 30, 'Loading...', {
-                font: GameConfig.ui.hudLabelFont,
+                fontFamily: GameConfig.ui.fontFamily,
+                fontStyle: '600',
+                fontSize: '20px',
                 color: '#ffffff',
             })
             .setOrigin(0.5);
