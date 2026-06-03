@@ -1,8 +1,8 @@
 # Memory Cards
 
 A small memory match game built with Phaser 3. Runs **standalone** in the
-browser or **embedded** as a microfrontend inside the
-[Game Hub](../game-hub) shell, which talks to it via `postMessage`.
+browser or **embedded** as a microfrontend inside the Game Hub shell, which
+talks to it via `postMessage`.
 
 This is also my first Phaser project — a stepping stone toward more complex
 games (slots being the goal). Coming from a React / front-end background,
@@ -101,6 +101,7 @@ memory-cards/
 │   ├── main.ts             # entry point: bridge + Phaser game
 │   ├── config.ts           # game-wide constants (incl. MFE settings)
 │   ├── styles.css
+│   ├── vite-env.d.ts       # Vite client type defs (import.meta.env)
 │   ├── mfe/
 │   │   ├── protocol.ts     # typed wire protocol shared with the shell
 │   │   └── bridge.ts       # MFE-side postMessage wrapper
@@ -121,8 +122,9 @@ larger Phaser projects.
 
 ## Gameplay
 
-- 5 pairs, 60-second timer
+- 4 pairs, 90-second timer, responsive 4-column grid
 - Match all pairs to win — best time persists in `localStorage`
+- "AMAZING! / ALL PAIRS FOUND!" win popup
 
 ## MFE / shell integration
 
