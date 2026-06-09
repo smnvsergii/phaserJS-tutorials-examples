@@ -45,6 +45,13 @@ npm run lint:fix     # ESLint --fix
 npm run format       # Prettier --write
 ```
 
+## Custom agent commands
+
+Reusable Claude Code slash commands live in `.claude/commands/`:
+
+- `/add-mfe-message <command|event> <type> [payload]` — adds a protocol message end-to-end (union + runtime guard + README + shell reminder).
+- `/verify` — runs the typecheck → lint → build sequence and reports.
+
 ## Before you finish a task (verification)
 
 Run, in this order, and fix anything that fails:
