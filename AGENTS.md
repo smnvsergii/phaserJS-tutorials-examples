@@ -51,6 +51,7 @@ Reusable Claude Code slash commands live in `.claude/commands/`:
 
 - `/add-mfe-message <command|event> <type> [payload]` — adds a protocol message end-to-end (union + runtime guard + README + shell reminder).
 - `/verify` — runs the typecheck → lint → build sequence and reports.
+- `/review [base-ref]` — reviews the diff against `.github/CODE_REVIEW_CHECKLIST.md`.
 
 ## Before you finish a task (verification)
 
