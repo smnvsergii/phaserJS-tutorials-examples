@@ -40,6 +40,8 @@ A Phaser 3 memory-match game in TypeScript that runs **standalone** or as a
 npm run dev          # dev server on http://localhost:8001
 npm run build        # tsc -b (type-check) + vite build → dist/
 npm run typecheck    # tsc, no emit
+npm run test         # Vitest (watch)
+npm run test:run     # Vitest (single run, used in CI)
 npm run lint         # ESLint
 npm run lint:fix     # ESLint --fix
 npm run format       # Prettier --write
@@ -53,6 +55,7 @@ Reusable Claude Code slash commands live in `.claude/commands/`:
 - `/verify` — runs the typecheck → lint → build sequence and reports.
 - `/review [base-ref]` — reviews the diff against `.github/CODE_REVIEW_CHECKLIST.md`.
 - `/debug <symptom>` — structured root-cause debugging using the project's known failure modes.
+- `/write-tests <file>` — generates Vitest unit tests for a module, following the project's test conventions.
 
 ## Before you finish a task (verification)
 
@@ -60,7 +63,8 @@ Run, in this order, and fix anything that fails:
 
 1. `npm run typecheck`
 2. `npm run lint`
-3. `npm run build`
+3. `npm run test:run`
+4. `npm run build`
 
 The pre-commit hook runs `lint-staged` (eslint --fix + prettier) on staged
 files, so unformatted code will block commits. Match the style up front.
@@ -91,6 +95,13 @@ TypeScript rules that matter (`eslint.config.js`, `tsconfig.json`):
 - The wire protocol lives in [`src/mfe/protocol.ts`](./src/mfe/protocol.ts) and is **mirrored by hand** in the shell. If you change it, say so explicitly — both sides must stay in sync.
 - All messages use the `MFEEnvelope<Type, Payload>` discriminated union. New commands/events must follow the **exact pattern** of existing ones and keep the `*Type` / `*Payload` helper types inferring.
 - `bridge.ts` is the MFE-side `postMessage` wrapper. Respect `GameConfig.mfe.allowedShellOrigins` — never weaken origin checks in committed code.
+
+## Testing
+
+- **Runner:** Vitest in **jsdom** (`vitest.config.ts`). Tests are `src/**/*.test.ts`, next to the source.
+- Import test helpers from `vitest` explicitly (`globals: false`). Restore mocks in `afterEach`.
+- Unit-test pure logic — the MFE bridge/protocol is the prime target (`src/mfe/bridge.test.ts`). **Don't** unit-test Phaser rendering or canvas output.
+- Prioritize the project's known traps (protocol union ↔ runtime `Set`, origin/target filtering, standalone vs embedded). Run with `npm run test:run`.
 
 ## Guardrails
 
